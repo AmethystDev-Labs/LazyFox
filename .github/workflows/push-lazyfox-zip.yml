@@ -1,0 +1,40 @@
+name: Push Lazyfox Zip
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to upload asset to (e.g. v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Build zip without cli directory
+        run: |
+          rm -rf package dist
+          mkdir -p package dist
+          rsync -a --delete --exclude '.git' --exclude 'cli' ./ package/
+          cd package
+          zip -r "../dist/template.zip" .
+
+      - name: Upload asset to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: dist/template.zip

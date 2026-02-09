@@ -8,7 +8,7 @@ def main(argv: list[str] | None = None) -> int:
         prog="lazyfox",
         description=(
             "LazyFox CLI\n"
-            "用于从固定仓库 AmethystDev-Labs/LazyFox 下载 Release 源码。"
+            "用于从固定仓库 AmethystDev-Labs/LazyFox 下载 Release 附件 template.zip。"
         ),
         epilog=(
             "示例:\n"
@@ -23,16 +23,16 @@ def main(argv: list[str] | None = None) -> int:
 
     init_parser = subparsers.add_parser(
         "init",
-        help="下载源码（latest 或指定版本）",
+        help="下载 template.zip（latest 或指定版本）",
         description=(
-            "从固定仓库下载源码:\n"
+            "从固定仓库下载 Release 附件 template.zip:\n"
             "https://github.com/AmethystDev-Labs/LazyFox"
         ),
     )
     init_parser.add_argument(
         "--version",
         "-v",
-        help="Release tag。默认 latest",
+        help="Release tag（需包含 template.zip）。默认 latest",
     )
     init_parser.add_argument(
         "--dest",

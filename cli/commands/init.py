@@ -10,6 +10,7 @@ from pathlib import Path
 REPO = "AmethystDev-Labs/LazyFox"
 API_BASE = f"https://api.github.com/repos/{REPO}"
 REPO_URL = f"https://github.com/{REPO}"
+ASSET_NAME = "template.zip"
 
 
 def run(args: argparse.Namespace) -> int:
@@ -24,10 +25,10 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     tag = source.get("tag_name") or version
-    zip_url = source.get("zipball_url")
+    zip_url = source.get("asset_url")
     source_type = source.get("source_type", "unknown")
     if not zip_url:
-        print("[init] 下载源缺少 zipball_url，无法下载源码。")
+        print(f"[init] 下载源缺少 {ASSET_NAME} 附件，无法下载。")
         return 1
 
     print(f"[init] 仓库: {REPO_URL}")
@@ -60,63 +61,42 @@ def _resolve_source(version: str) -> dict:
     if version == "latest":
         try:
             release = _api_get(f"{API_BASE}/releases/latest")
-            if isinstance(release, dict) and release.get("zipball_url"):
-                return {
-                    "source_type": "latest release",
-                    "tag_name": release.get("tag_name") or "latest",
-                    "zipball_url": release["zipball_url"],
-                }
+            return _release_template_asset(release, "latest release")
         except RuntimeError as exc:
             if "HTTP 404" not in str(exc):
                 raise
+            releases = _api_get(f"{API_BASE}/releases?per_page=1")
+            if isinstance(releases, list) and releases:
+                return _release_template_asset(releases[0], "latest listed release")
+            raise RuntimeError("仓库没有可用 release。")
 
-        tags = _api_get(f"{API_BASE}/tags?per_page=1")
-        if isinstance(tags, list) and tags:
-            first = tags[0]
-            return {
-                "source_type": "latest tag",
-                "tag_name": first.get("name") or "latest-tag",
-                "zipball_url": first.get("zipball_url"),
-            }
-
-        return _default_branch_source()
-
-    try:
-        release = _api_get(f"{API_BASE}/releases/tags/{version}")
-        if isinstance(release, dict) and release.get("zipball_url"):
-            return {
-                "source_type": "release tag",
-                "tag_name": release.get("tag_name") or version,
-                "zipball_url": release["zipball_url"],
-            }
-    except RuntimeError as exc:
-        if "HTTP 404" not in str(exc):
-            raise
-
-    tags = _api_get(f"{API_BASE}/tags?per_page=100")
-    if isinstance(tags, list):
-        for item in tags:
-            if item.get("name") == version:
-                return {
-                    "source_type": "git tag",
-                    "tag_name": version,
-                    "zipball_url": item.get("zipball_url"),
-                }
-
-    raise RuntimeError(f"未找到版本 `{version}` 的 release 或 tag。")
+    release = _api_get(f"{API_BASE}/releases/tags/{version}")
+    return _release_template_asset(release, "release tag")
 
 
-def _default_branch_source() -> dict:
-    repo = _api_get(API_BASE)
-    if not isinstance(repo, dict):
-        raise RuntimeError("仓库信息格式异常。")
-    branch = repo.get("default_branch")
-    if not branch:
-        raise RuntimeError("仓库没有默认分支信息。")
+def _release_template_asset(release: dict | list, source_type: str) -> dict:
+    if not isinstance(release, dict):
+        raise RuntimeError("Release 信息格式异常。")
+
+    assets = release.get("assets")
+    if not isinstance(assets, list):
+        raise RuntimeError("Release 资产信息格式异常。")
+
+    asset_url = None
+    for asset in assets:
+        if isinstance(asset, dict) and asset.get("name") == ASSET_NAME:
+            asset_url = asset.get("browser_download_url")
+            break
+
+    if not asset_url:
+        raise RuntimeError(
+            f"Release `{release.get('tag_name') or 'unknown'}` 未找到附件 `{ASSET_NAME}`。"
+        )
+
     return {
-        "source_type": f"default branch ({branch})",
-        "tag_name": branch,
-        "zipball_url": f"{REPO_URL}/archive/refs/heads/{branch}.zip",
+        "source_type": source_type,
+        "tag_name": release.get("tag_name") or "unknown",
+        "asset_url": asset_url,
     }
 
 
@@ -136,17 +116,15 @@ def _headers() -> dict[str, str]:
 
 def _download_and_extract(zip_url: str, dest: Path, force: bool) -> None:
     with tempfile.TemporaryDirectory(prefix="lazyfox-init-") as tmp_dir:
-        zip_path = Path(tmp_dir) / "source.zip"
+        zip_path = Path(tmp_dir) / ASSET_NAME
+        extract_dir = Path(tmp_dir) / "extract"
         _download_file(zip_url, zip_path)
+        extract_dir.mkdir(parents=True, exist_ok=True)
 
         with zipfile.ZipFile(zip_path, "r") as archive:
-            root_name = _detect_root_folder(archive)
-            archive.extractall(tmp_dir)
+            archive.extractall(extract_dir)
 
-        source_root = Path(tmp_dir) / root_name
-        if not source_root.exists():
-            raise RuntimeError("解压后未找到源码目录。")
-
+        source_root = _detect_source_root(extract_dir)
         _copy_tree(source_root, dest, force=force)
 
 
@@ -163,11 +141,16 @@ def _download_file(url: str, output_path: Path) -> None:
         raise RuntimeError(f"下载失败: {exc.reason}") from exc
 
 
-def _detect_root_folder(archive: zipfile.ZipFile) -> str:
-    names = [name for name in archive.namelist() if name and not name.startswith("__MACOSX/")]
-    if not names:
+def _detect_source_root(extract_dir: Path) -> Path:
+    children = [path for path in extract_dir.iterdir() if path.name != "__MACOSX"]
+    if not children:
         raise RuntimeError("压缩包为空。")
-    return names[0].split("/", 1)[0]
+
+    dirs = [path for path in children if path.is_dir()]
+    files = [path for path in children if path.is_file()]
+    if len(dirs) == 1 and not files:
+        return dirs[0]
+    return extract_dir
 
 
 def _copy_tree(source_root: Path, dest: Path, force: bool) -> None:
