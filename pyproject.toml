@@ -1,0 +1,19 @@
+[project]
+name = "lazyfox"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "camoufox[bundle,geoip]>=0.4.11",
+    "curl-cffi>=0.14.0",
+    "httpx[http2]>=0.28.1",
+    "loguru>=0.7.3",
+    "parsel>=1.11.0",
+    "pycryptodome>=3.23.0",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "tenacity>=9.1.4",
+    "tqdm>=4.67.3",
+    "zstandard>=0.25.0",
+]
