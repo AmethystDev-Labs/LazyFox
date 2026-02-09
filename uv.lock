@@ -631,7 +631,7 @@ wheels = [
 [[package]]
 name = "lazyfox"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "camoufox", extra = ["geoip"] },
     { name = "curl-cffi" },
@@ -648,7 +648,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "camoufox", extras = ["bundle", "geoip"], specifier = ">=0.4.11" },
+    { name = "camoufox", extras = ["geoip"], specifier = ">=0.4.11" },
     { name = "curl-cffi", specifier = ">=0.14.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.28.1" },
     { name = "loguru", specifier = ">=0.7.3" },

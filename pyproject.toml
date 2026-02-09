@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "camoufox[bundle,geoip]>=0.4.11",
+    "camoufox[geoip]>=0.4.11",
     "curl-cffi>=0.14.0",
     "httpx[http2]>=0.28.1",
     "loguru>=0.7.3",
@@ -17,3 +17,13 @@ dependencies = [
     "tqdm>=4.67.3",
     "zstandard>=0.25.0",
 ]
+
+[project.scripts]
+lazyfox = "cli.app:main"
+
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cli", "ext"]

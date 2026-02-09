@@ -1,0 +1,2 @@
+"""LazyFox CLI package."""
+
