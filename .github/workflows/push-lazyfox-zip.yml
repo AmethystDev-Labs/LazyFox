@@ -29,7 +29,13 @@ jobs:
         run: |
           rm -rf package dist
           mkdir -p package dist
-          rsync -a --delete --exclude '.git' --exclude 'cli' ./ package/
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'cli' \
+            --exclude 'dist' \
+            --exclude 'package' \
+            ./ package/
           cd package
           zip -r "../dist/template.zip" .
 
